@@ -33,9 +33,13 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Landing page: mint an unguessable room and bounce to it.
+    // Landing page: serve the home page so users can create a room.
     if (path === '/' || path === '') {
-      return Response.redirect(`${url.origin}/r/${newRoomId()}`, 302);
+      const res = await env.ASSETS.fetch(new Request(`${url.origin}/landing`, request));
+      const headers = new Headers(res.headers);
+      headers.set('content-type', 'text/html; charset=utf-8');
+      headers.set('cache-control', 'no-store');
+      return new Response(res.body, { status: res.status, headers });
     }
 
     // ICE servers (STUN + TURN). Short cache so a reload is cheap.
@@ -62,16 +66,12 @@ export default {
       if (!ROOM_ID_RE.test(roomId)) {
         return Response.redirect(`${url.origin}/r/${newRoomId()}`, 302);
       }
-      const res = await env.ASSETS.fetch(new Request(`${url.origin}/index.html`, request));
-      return new Response(res.body, {
-        status: res.status,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store',
-          // Keep the room id out of Referer headers to third parties.
-          'referrer-policy': 'no-referrer',
-        },
-      });
+      const res = await env.ASSETS.fetch(new Request(`${url.origin}/room`, request));
+      const headers = new Headers(res.headers);
+      headers.set('content-type', 'text/html; charset=utf-8');
+      headers.set('cache-control', 'no-store');
+      headers.set('referrer-policy', 'no-referrer');
+      return new Response(res.body, { status: res.status, headers });
     }
 
     return env.ASSETS.fetch(request);
@@ -89,8 +89,8 @@ async function handleIce(env: Env, ctx: ExecutionContext): Promise<Response> {
   // Cloudflare's own public STUN, plus Google's as a second opinion.
   const fallback = {
     iceServers: [
-      { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
-      { urls: ['stun:stun.l.google.com:19302'] },
+      { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+      { urls: ['stun:stun.cloudflare.com:3478'] },
     ],
     turn: false,
   };

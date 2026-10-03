@@ -1,0 +1,1865 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>duo — room</title>
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #09090c;
+    --surface: #111118;
+    --surface-2: #16161e;
+    --surface-3: #1c1c26;
+    --border: #1e1e2a;
+    --border-2: #2a2a3a;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --muted-2: #9090a8;
+    --accent: #6366f1;
+    --accent-dim: rgba(99,102,241,.12);
+    --accent-hover: #818cf8;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,.1);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,.12);
+    --amber: #f59e0b;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Top header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+
+  .brand-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .brand-icon svg { display: block; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
+
+  #status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background .3s;
+  }
+  .dot.ok { background: var(--green); }
+  .dot.warn { background: var(--amber); }
+  .dot.bad { background: var(--red); }
+
+  .spacer { flex: 1; }
+
+  #btnSettings {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  #btnSettings:hover { background: var(--surface-2); color: var(--text); }
+  #btnSettings.active { background: var(--accent-dim); color: var(--accent-hover); border-color: rgba(99,102,241,.3); }
+
+  /* ── Main layout ── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Stage (center video area) ── */
+  #stage {
+    flex: 1;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  video { max-width: 100%; max-height: 100%; background: #000; display: block; }
+  #remoteScreen { width: 100%; height: 100%; object-fit: contain; }
+  #localPreview {
+    position: absolute;
+    right: 12px;
+    bottom: 80px;
+    width: 180px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,.12);
+    opacity: .9;
+  }
+  audio { display: none; }
+
+  /* ── Pre-join overlay (shown before user clicks Join) ── */
+  #preJoin {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 5;
+  }
+
+  .prejoin-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .pj-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    color: var(--text);
+  }
+
+  .pj-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.55;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 9px;
+    font: 14px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .field-input:focus { border-color: rgba(99,102,241,.5); }
+  .field-input::placeholder { color: var(--muted); }
+
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 9px;
+    padding: 8px 8px 8px 12px;
+  }
+
+  .link-url-text {
+    flex: 1;
+    font-size: 12.5px;
+    color: var(--muted-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: ui-monospace, monospace;
+  }
+
+  #btnCopy {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+    border: 1px solid rgba(99,102,241,.2);
+    border-radius: 7px;
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+
+  #btnCopy:hover { background: rgba(99,102,241,.2); }
+
+  .hint-inline {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* Compat warning */
+  #compat {
+    background: rgba(245,158,11,.1);
+    border: 1px solid rgba(245,158,11,.25);
+    color: var(--amber);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  #btnJoin {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font: 600 15px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #btnJoin:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 28px rgba(129,140,248,.45); }
+  #btnJoin:active { transform: translateY(0); }
+  #btnJoin:disabled { opacity: .4; cursor: default; transform: none; box-shadow: none; }
+
+  /* ── Waiting state (shown after join, waiting for peer) ── */
+  #waitingScreen {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    z-index: 4;
+  }
+
+  #waitingScreen.visible { display: flex; }
+
+  .waiting-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--border-2);
+    border-top-color: var(--accent);
+    animation: spin 1.2s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .waiting-text {
+    text-align: center;
+  }
+
+  .waiting-text h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -.3px;
+    margin-bottom: 6px;
+  }
+
+  .waiting-text p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .waiting-invite {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .waiting-invite .field-label { margin-bottom: 8px; }
+
+  /* ── No screen placeholder ── */
+  #noScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #noScreen svg { opacity: .3; }
+
+  /* ── Bottom control bar ── */
+  #controls {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  #controls.visible { display: flex; }
+
+  .ctrl-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    transition: background .15s, color .15s, border-color .15s;
+    min-width: 64px;
+  }
+
+  .ctrl-btn svg { width: 20px; height: 20px; }
+  .ctrl-btn:hover:not(:disabled) { background: var(--surface-3); }
+  .ctrl-btn:disabled { opacity: .35; cursor: default; }
+
+  .ctrl-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+    border-color: rgba(99,102,241,.3);
+  }
+
+  .ctrl-btn.danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border-color: rgba(239,68,68,.2);
+  }
+
+  .ctrl-btn.leave {
+    background: var(--red-dim);
+    color: var(--red);
+    border-color: rgba(239,68,68,.2);
+  }
+
+  .ctrl-btn.leave:hover { background: rgba(239,68,68,.2); }
+
+  /* VU meters in controls */
+  .vu-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    min-width: 80px;
+  }
+
+  .vu-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+  .meter {
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meter > i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--green);
+    transition: width .06s linear;
+    border-radius: 2px;
+  }
+
+  /* ── Settings panel (slide-in from right) ── */
+  #settingsPanel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+    z-index: 20;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #settingsPanel.open { transform: translateX(0); }
+
+  #settingsPanel::-webkit-scrollbar { width: 4px; }
+  #settingsPanel::-webkit-scrollbar-track { background: transparent; }
+  #settingsPanel::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -.2px;
+  }
+
+  #btnCloseSettings {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  #btnCloseSettings:hover { background: var(--surface-2); color: var(--text); }
+
+  /* fieldsets inside settings */
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px 14px;
+    background: var(--surface-2);
+  }
+
+  legend {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    padding: 0 6px;
+  }
+
+  label {
+    display: block;
+    margin: 9px 0 3px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  select, input[type=text], input[type=number] {
+    font: 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    padding: 5px 7px;
+    border-radius: 7px;
+    width: 100%;
+    outline: none;
+  }
+
+  select:focus, input:focus { border-color: rgba(99,102,241,.4); }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  .val { color: var(--muted-2); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+  .chk {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 6px 0;
+    color: var(--muted-2);
+    font-size: 12px;
+  }
+  .chk input { flex: 0 0 auto; width: auto; accent-color: var(--accent); }
+  .chk label { margin: 0; text-transform: none; letter-spacing: 0; color: var(--muted-2); font-size: 12px; }
+
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row > * { flex: 1; }
+
+  .btn-small {
+    font: 500 12px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 7px;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-small:hover { background: var(--surface-3); }
+  .btn-small:disabled { opacity: .4; cursor: default; }
+
+  /* Stats & Log */
+  table.stats { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.stats td { padding: 2px 0; vertical-align: top; }
+  table.stats td:first-child { color: var(--muted); width: 50%; }
+  table.stats td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+  #log {
+    font-size: 10.5px;
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  /* Hidden elements that the JS still needs */
+  #roomLink { display: none; }
+
+  /* Mobile bottom bar adjustments */
+  @media (max-width: 600px) {
+    #settingsPanel { width: 100%; }
+    .ctrl-btn { min-width: 54px; padding: 9px 12px; font-size: 10px; }
+    .vu-wrap { display: none; }
+    #localPreview { width: 120px; bottom: 90px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <a class="brand" href="/">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+        <circle cx="7" cy="10" r="4" fill="white" opacity=".9"/>
+        <circle cx="13" cy="10" r="4" fill="white" opacity=".5"/>
+      </svg>
+    </div>
+    <span class="brand-name">duo</span>
+  </a>
+
+  <div id="status"><span class="dot"></span>idle</div>
+
+  <div class="spacer"></div>
+
+  <button id="btnSettings" title="Settings">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M7.5 5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.75 2.75l1.06 1.06M11.19 11.19l1.06 1.06M2.75 12.25l1.06-1.06M11.19 3.81l1.06-1.06" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Main area -->
+<div id="main">
+
+  <!-- Video stage -->
+  <div id="stage">
+    <div id="noScreen">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="10" width="36" height="26" rx="3" stroke="currentColor" stroke-width="2"/>
+        <path d="M18 36v4M30 36v4M14 40h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      No screen shared
+    </div>
+    <video id="remoteScreen" autoplay playsinline hidden></video>
+    <video id="localPreview" autoplay playsinline muted hidden></video>
+    <audio id="remoteAudio" autoplay></audio>
+    <audio id="remoteScreenAudio" autoplay></audio>
+  </div>
+
+  <!-- Pre-join overlay -->
+  <div id="preJoin">
+    <div class="prejoin-card">
+      <div>
+        <div class="pj-title">Join the call</div>
+        <div class="pj-sub">Share the link with your friend first, then jump in.</div>
+      </div>
+
+      <div id="compat" hidden></div>
+
+      <!-- Invite link -->
+      <div>
+        <div class="field-label">Room link — share this</div>
+        <div class="link-row">
+          <span class="link-url-text" id="linkDisplayRoom"></span>
+          <button id="btnCopy">Copy link</button>
+        </div>
+      </div>
+
+      <!-- Hidden input that JS writes to (kept for compat) -->
+      <input type="text" id="roomLink" readonly>
+
+      <!-- Name -->
+      <div>
+        <div class="field-label">Your name</div>
+        <input type="text" id="name" class="field-input" maxlength="24" placeholder="Enter your name...">
+      </div>
+
+      <button id="btnJoin">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.5" stroke="white" stroke-width="1.4"/>
+          <circle cx="8" cy="8" r="3" fill="white"/>
+        </svg>
+        Join call
+      </button>
+    </div>
+  </div>
+
+  <!-- Waiting state (after join, before peer) -->
+  <div id="waitingScreen">
+    <div class="waiting-ring"></div>
+    <div class="waiting-text">
+      <h2>Waiting for your friend...</h2>
+      <p>Share the link and they can join instantly.</p>
+    </div>
+    <div class="waiting-invite">
+      <div class="field-label">Room link</div>
+      <div class="link-row" style="margin-top:0">
+        <span class="link-url-text" id="waitingLinkDisplay"></span>
+        <button class="btn-small" id="btnCopyWaiting">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
+  <div id="settingsPanel">
+    <div class="panel-header">
+      <span class="panel-title">Settings</span>
+      <button id="btnCloseSettings">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <fieldset>
+      <legend>Voice</legend>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="field-label" style="font-size:9px;margin-bottom:3px">Your mic</div>
+          <div class="meter"><i id="vuLocal"></i></div>
+        </div>
+        <div style="flex:1">
+          <div class="field-label" style="font-size:9px;margin-bottom:3px">Incoming</div>
+          <div class="meter"><i id="vuRemote"></i></div>
+        </div>
+      </div>
+
+      <label>Latency vs stability</label>
+      <select id="latencyMode">
+        <option value="instant">Instant — lowest delay</option>
+        <option value="balanced" selected>Balanced — ~80ms buffer</option>
+        <option value="stable">Stable — ~200ms buffer</option>
+        <option value="rough">Rough link — ~400ms buffer</option>
+      </select>
+
+      <label>Outgoing bitrate: <span class="val" id="labAudioTx">40 kbps</span></label>
+      <input type="range" id="audioTx" min="12" max="128" step="4" value="40">
+
+      <label>Ask peer to send: <span class="val" id="labAudioRx">32 kbps</span></label>
+      <input type="range" id="audioRx" min="12" max="128" step="4" value="32">
+
+      <div class="chk"><input type="checkbox" id="optRed" checked><label for="optRed">RED redundancy (packet recovery)</label></div>
+      <div class="chk"><input type="checkbox" id="optFec" checked><label for="optFec">Opus in-band FEC</label></div>
+      <div class="chk"><input type="checkbox" id="optDtx"><label for="optDtx">DTX (silence suppression)</label></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Microphone</legend>
+      <div class="chk"><input type="checkbox" id="optAec" checked><label for="optAec">Echo cancellation</label></div>
+      <div class="chk"><input type="checkbox" id="optNs" checked><label for="optNs">Noise suppression</label></div>
+      <div class="chk"><input type="checkbox" id="optAgc" checked><label for="optAgc">Auto gain control</label></div>
+      <label>Microphone</label>
+      <select id="micSel"></select>
+      <label>Speaker</label>
+      <select id="spkSel"></select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Screen share</legend>
+      <label>Content profile</label>
+      <select id="screenMode">
+        <option value="text" selected>Code / text — sharp, low fps</option>
+        <option value="balanced">Balanced</option>
+        <option value="motion">Motion / video — smooth</option>
+        <option value="manual">Manual</option>
+      </select>
+
+      <label>Max bitrate: <span class="val" id="labScreenBr">700 kbps</span></label>
+      <input type="range" id="screenBr" min="100" max="6000" step="100" value="700">
+
+      <label>Max frame rate: <span class="val" id="labScreenFps">5 fps</span></label>
+      <input type="range" id="screenFps" min="1" max="60" step="1" value="5">
+
+      <label>Resolution scale: <span class="val" id="labScreenScale">1x (native)</span></label>
+      <input type="range" id="screenScale" min="10" max="40" step="1" value="10">
+
+      <label>Codec</label>
+      <select id="screenCodec">
+        <option value="VP9" selected>VP9 — best for text</option>
+        <option value="AV1">AV1 — best compression</option>
+        <option value="VP8">VP8 — lightest CPU</option>
+        <option value="H264">H264 — hardware encoder</option>
+      </select>
+
+      <div class="chk"><input type="checkbox" id="optShareAudio"><label for="optShareAudio">Include system audio</label></div>
+      <div class="chk"><input type="checkbox" id="optProtect" checked><label for="optProtect">Protect voice on packet loss</label></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ask peer for</legend>
+      <label>Their screen bitrate: <span class="val" id="labReqBr">700 kbps</span></label>
+      <input type="range" id="reqBr" min="100" max="6000" step="100" value="700">
+      <label>Their frame rate: <span class="val" id="labReqFps">5 fps</span></label>
+      <input type="range" id="reqFps" min="1" max="60" step="1" value="5">
+      <button class="btn-small" id="btnReq" style="margin-top:8px;width:100%">Apply to peer</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Network</legend>
+      <div class="chk"><input type="checkbox" id="optRelay"><label for="optRelay">Force TURN relay</label></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn-small" id="btnIceRestart">Repair connection</button>
+        <button class="btn-small" id="btnRenegotiate">Renegotiate</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Live stats</legend>
+      <table class="stats"><tbody id="statsBody"></tbody></table>
+    </fieldset>
+
+    <fieldset>
+      <legend>Log</legend>
+      <div id="log"></div>
+    </fieldset>
+  </div>
+
+</div>
+
+<!-- Bottom controls bar (hidden until joined) -->
+<div id="controls">
+  <div class="vu-wrap">
+    <div class="vu-label">Mic</div>
+    <div class="meter"><i id="vuLocalCtrl"></i></div>
+    <div class="vu-label" style="margin-top:4px">Peer</div>
+    <div class="meter"><i id="vuRemoteCtrl"></i></div>
+  </div>
+
+  <button class="ctrl-btn" id="btnMic" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M4 10a6 6 0 0 0 12 0M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Mic on
+  </button>
+
+  <button class="ctrl-btn" id="btnShare" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Share
+  </button>
+
+  <button class="ctrl-btn" id="btnCopyCtrl">
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Invite
+  </button>
+
+  <button class="ctrl-btn leave" id="btnLeave" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <path d="M13.5 6.5L17 10l-3.5 3.5M17 10H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10 4H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Leave
+  </button>
+</div>
+
+<script>
+"use strict";
+
+/* ================================================================
+   duo - two-person WebRTC voice + screen share.
+
+   Design notes that matter for a bad link:
+
+   1. Voice and screen share ride on TWO SEPARATE RTCPeerConnections.
+      Each connection runs its own bandwidth estimator, so a screen
+      share that saturates the uplink cannot steal the voice stream's
+      allocation, and starting or stopping a share never renegotiates
+      the audio connection.
+
+   2. Both connections are fully negotiated at join time with
+      placeholder transceivers. Starting a share is replaceTrack() on
+      an already-negotiated sender - no renegotiation, no SDP round
+      trip, no "his screen never showed up".
+
+   3. Voice defaults to Opus + RED. RED carries each frame again inside
+      the next packets, which is what actually stops a voice from
+      shattering on a lossy link. In-band FEC layers on top of that.
+
+   4. Screen share defaults to high resolution / low frame rate with
+      degradationPreference = maintain-resolution, because unreadable
+      text at 30 fps is worse than readable text at 5 fps.
+   ================================================================ */
+
+const $ = (s) => document.querySelector(s);
+const roomId = location.pathname.startsWith('/r/') ? location.pathname.slice(3) : '';
+
+const cfg = {
+  audioTx: 40000,
+  audioRx: 32000,
+  red: true, fec: true, dtx: false,
+  latencyMode: 'balanced',
+  aec: true, ns: true, agc: true,
+  micId: '', spkId: '',
+  screenBr: 700000, screenFps: 5, screenScale: 1.0,
+  screenCodec: 'VP9', screenMode: 'text',
+  shareAudio: false, protect: true, relay: false,
+};
+
+const LATENCY = { instant: 0, balanced: 80, stable: 200, rough: 400 };
+const SCREEN_PROFILES = {
+  text:     { br: 700,  fps: 5,  scale: 1.0, hint: 'text',   deg: 'maintain-resolution' },
+  balanced: { br: 1500, fps: 15, scale: 1.0, hint: 'detail', deg: 'maintain-resolution' },
+  motion:   { br: 2500, fps: 30, scale: 1.5, hint: 'motion', deg: 'maintain-framerate' },
+};
+
+let ws = null, wsRetry = 0, wsAlive = false, roomFull = false;
+let selfMeta = null, peerMeta = null, polite = true, initiator = false;
+let iceServers = [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }], hasTurn = false;
+let micStream = null, screenStream = null;
+let joined = false, micMuted = false, sharing = false;
+let audioCtx = null, statsTimer = null, protectState = { level: 1, cooldown: 0 };
+
+/* ---------------- logging ---------------- */
+const logEl = $('#log');
+function log(...a) {
+  const line = new Date().toLocaleTimeString() + '  ' + a.join(' ');
+  logEl.textContent = (line + '\n' + logEl.textContent).split('\n').slice(0, 120).join('\n');
+  console.log(...a);
+}
+function setStatus(text, cls) {
+  $('#status').innerHTML = '<span class="dot ' + (cls || '') + '"></span>' + text;
+}
+
+/* ---------------- perfect-negotiation connection ---------------- */
+
+class Conn {
+  constructor(ch) {
+    this.ch = ch;               // 'a' (voice) or 's' (screen)
+    this.pc = null;
+    this.makingOffer = false;
+    this.ignoreOffer = false;
+    this.audioTx = null;        // RTCRtpTransceiver
+    this.videoTx = null;
+    this.pendingIce = [];
+    this.recoverTimer = null;
+  }
+
+  build() {
+    this.close();
+    const pc = new RTCPeerConnection({
+      iceServers,
+      iceTransportPolicy: cfg.relay ? 'relay' : 'all',
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require',
+      iceCandidatePoolSize: 4,
+    });
+    this.pc = pc;
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) sig({ t: 'ice', ch: this.ch, c: e.candidate.toJSON() });
+    };
+
+    pc.onnegotiationneeded = async () => {
+      // We drive all offers manually (in startPeer / startShare).
+      // Suppress auto-negotiation here to prevent race conditions
+      // where the offer fires before tracks are attached.
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      const st = pc.iceConnectionState;
+      log(`[${this.ch}] ice ${st}`);
+      if (st === 'failed') {
+        this.restartIce();
+      } else if (st === 'disconnected') {
+        clearTimeout(this.recoverTimer);
+        this.recoverTimer = setTimeout(() => {
+          if (this.pc && this.pc.iceConnectionState === 'disconnected') this.restartIce();
+        }, 3000);
+      } else if (st === 'connected' || st === 'completed') {
+        clearTimeout(this.recoverTimer);
+        if (this.ch === 'a') setStatus('connected', 'ok');
+      }
+      refreshHeader();
+    };
+
+    pc.ontrack = (e) => this.onTrack(e);
+
+    // Placeholder transceivers, negotiated once, reused forever.
+    if (this.ch === 'a') {
+      this.audioTx = pc.addTransceiver('audio', { direction: 'sendrecv' });
+      applyAudioCodecPrefs(this.audioTx);
+    } else {
+      this.videoTx = pc.addTransceiver('video', { direction: 'sendrecv' });
+      applyVideoCodecPrefs(this.videoTx, cfg.screenCodec);
+      this.audioTx = pc.addTransceiver('audio', { direction: 'sendrecv' });
+    }
+    return pc;
+  }
+
+  onTrack(e) {
+    const track = e.track;
+    if (this.ch === 'a' && track.kind === 'audio') {
+      const el = $('#remoteAudio');
+      el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.muted = false;
+      el.volume = 1.0;
+      el.play().catch(err => log('remoteAudio play failed:', err));
+      applySink(el);
+      attachRemoteMeter(el.srcObject);
+      applyJitterTarget();
+    } else if (this.ch === 's' && track.kind === 'video') {
+      const el = $('#remoteScreen');
+      el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.play().catch(err => log('remoteScreen play failed:', err));
+      track.onunmute = () => showRemoteScreen(true);
+      track.onmute = () => showRemoteScreen(false);
+      if (!track.muted) showRemoteScreen(true);
+    } else if (this.ch === 's' && track.kind === 'audio') {
+      const el = $('#remoteScreenAudio');
+      el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.muted = false;
+      el.volume = 1.0;
+      el.play().catch(err => log('remoteScreenAudio play failed:', err));
+      applySink(el);
+    }
+  }
+
+  async offer(opts) {
+    if (!this.pc) return;
+    try {
+      this.makingOffer = true;
+      const o = await this.pc.createOffer(opts || {});
+      o.sdp = tuneSdp(o.sdp, this.ch);
+      await this.pc.setLocalDescription(o);
+      this.everNegotiated = true;
+      sig({ t: 'sdp', ch: this.ch, sdp: { type: this.pc.localDescription.type, sdp: this.pc.localDescription.sdp } });
+    } catch (err) {
+      log(`[${this.ch}] offer failed:`, err.message);
+    } finally {
+      this.makingOffer = false;
+    }
+  }
+
+  async onSdp(desc) {
+    const pc = this.pc;
+    if (!pc) return;
+    const collision = desc.type === 'offer' && (this.makingOffer || pc.signalingState !== 'stable');
+    this.ignoreOffer = !polite && collision;
+    if (this.ignoreOffer) { log(`[${this.ch}] ignored colliding offer`); return; }
+
+    try {
+      await pc.setRemoteDescription(desc);       // implicit rollback handles glare
+      this.everNegotiated = true;
+      for (const c of this.pendingIce.splice(0)) {
+        try { await pc.addIceCandidate(c); } catch (e) { /* stale */ }
+      }
+      if (desc.type === 'offer') {
+        const a = await pc.createAnswer();
+        a.sdp = tuneSdp(a.sdp, this.ch);
+        await pc.setLocalDescription(a);
+        sig({ t: 'sdp', ch: this.ch, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+      }
+      await applySendParams();
+      applyJitterTarget();
+    } catch (err) {
+      log(`[${this.ch}] sdp error:`, err.message);
+    }
+  }
+
+  async onIce(c) {
+    const pc = this.pc;
+    if (!pc) return;
+    if (!pc.remoteDescription) { this.pendingIce.push(c); return; }
+    try { await pc.addIceCandidate(c); }
+    catch (e) { if (!this.ignoreOffer) log(`[${this.ch}] ice add failed`); }
+  }
+
+  async restartIce() {
+    if (!this.pc) return;
+    log(`[${this.ch}] restarting ICE`);
+    if (initiator || polite === false) {
+      await this.offer({ iceRestart: true });
+    } else {
+      sig({ t: 'please-restart', ch: this.ch });
+    }
+  }
+
+  close() {
+    clearTimeout(this.recoverTimer);
+    if (this.pc) { try { this.pc.close(); } catch (e) {} }
+    this.pc = null; this.audioTx = null; this.videoTx = null;
+    this.pendingIce = []; this.everNegotiated = false;
+  }
+}
+
+const A = new Conn('a');   // voice
+const S = new Conn('s');   // screen share
+
+/* ---------------- SDP tuning ---------------- */
+
+function tuneSdp(sdp, ch) {
+  sdp = tuneOpus(sdp);
+  if (ch === 's') sdp = tuneVideoStart(sdp);
+  return sdp;
+}
+
+// Everything set here describes what we want the REMOTE side to send us.
+function tuneOpus(sdp) {
+  const m = sdp.match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+  if (!m) return sdp;
+  const pt = m[1];
+  const params = [
+    'minptime=10',
+    'maxplaybackrate=48000',
+    'sprop-maxcapturerate=48000',
+    'stereo=0',
+    'sprop-stereo=0',
+    `useinbandfec=${cfg.fec ? 1 : 0}`,
+    `usedtx=${cfg.dtx ? 1 : 0}`,
+    `maxaveragebitrate=${cfg.audioRx}`,
+  ].join(';');
+  const line = `a=fmtp:${pt} ${params}`;
+  const existing = new RegExp(`a=fmtp:${pt} [^\\r\\n]*`);
+  if (existing.test(sdp)) return sdp.replace(existing, line);
+  return sdp.replace(
+    new RegExp(`(a=rtpmap:${pt} opus/48000/2[^\\r\\n]*\\r?\\n)`),
+    `$1${line}\r\n`,
+  );
+}
+
+// This SDP goes to the peer, so it configures THEIR encoder. Give it a start
+// bitrate near what we are willing to receive, otherwise libwebrtc ramps up
+// from ~300 kbps and a fresh screen share is mud for the first several seconds.
+// Only the start value - the hard cap stays with the sender's setParameters,
+// so the two sides never fight over one number.
+function tuneVideoStart(sdp) {
+  const want = Number($('#reqBr').value) || 700;
+  const start = Math.max(150, Math.round(want * 0.8));
+  return sdp.replace(
+    /a=fmtp:(\d+) ([^\r\n]*)/g,
+    (full, pt, body) => {
+      if (!isVideoPt(sdp, pt)) return full;
+      const cleaned = body
+        .split(';')
+        .filter((p) => p.trim() && !/^x-google-start-bitrate=/.test(p.trim()));
+      cleaned.push(`x-google-start-bitrate=${start}`);
+      return `a=fmtp:${pt} ${cleaned.join(';')}`;
+    },
+  );
+}
+
+function isVideoPt(sdp, pt) {
+  const rt = sdp.match(new RegExp(`a=rtpmap:${pt} ([^/]+)/(\\d+)`));
+  return !!rt && /^(VP8|VP9|AV1|H264|H265)$/i.test(rt[1]);
+}
+
+function applyAudioCodecPrefs(tx) {
+  try {
+    const caps = RTCRtpReceiver.getCapabilities('audio');
+    if (!caps || !tx.setCodecPreferences) return;
+    const red = caps.codecs.filter((c) => /\/red$/i.test(c.mimeType));
+    const opus = caps.codecs.filter((c) => /\/opus$/i.test(c.mimeType));
+    const rest = caps.codecs.filter((c) => !/\/red$|\/opus$/i.test(c.mimeType));
+    tx.setCodecPreferences(cfg.red ? [...red, ...opus, ...rest] : [...opus, ...red, ...rest]);
+  } catch (e) { log('codec pref (audio):', e.message); }
+}
+
+function applyVideoCodecPrefs(tx, name) {
+  try {
+    const caps = RTCRtpReceiver.getCapabilities('video');
+    if (!caps || !tx.setCodecPreferences) return;
+    const want = 'video/' + name.toLowerCase();
+    const pick = caps.codecs.filter((c) => c.mimeType.toLowerCase() === want);
+    const rest = caps.codecs.filter((c) => c.mimeType.toLowerCase() !== want);
+    if (!pick.length) { log('codec not available:', name); return; }
+    tx.setCodecPreferences([...pick, ...rest]);
+  } catch (e) { log('codec pref (video):', e.message); }
+}
+
+/* ---------------- sender / receiver parameters ---------------- */
+
+async function applySendParams() {
+  // Voice. RED roughly doubles the payload, so the cap needs headroom or
+  // the encoder throttles itself and we lose the redundancy we asked for.
+  const aSender = A.pc && A.pc.getSenders().find((s) => s.track && s.track.kind === 'audio');
+  if (aSender) {
+    try {
+      const p = aSender.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = Math.round(cfg.audioTx * (cfg.red ? 2.3 : 1.15));
+      p.encodings[0].priority = 'high';
+      p.encodings[0].networkPriority = 'high';
+      p.encodings[0].dtx = cfg.dtx ? 'enabled' : 'disabled';
+      await aSender.setParameters(p);
+    } catch (e) { log('audio params:', e.message); }
+  }
+
+  // Screen share.
+  const vSender = S.pc && S.pc.getSenders().find((s) => s.track && s.track.kind === 'video');
+  if (vSender) {
+    try {
+      const p = vSender.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      const prof = SCREEN_PROFILES[cfg.screenMode];
+      p.degradationPreference = prof ? prof.deg : 'maintain-resolution';
+      p.encodings[0].maxBitrate = Math.round(cfg.screenBr * protectState.level);
+      p.encodings[0].maxFramerate = cfg.screenFps;
+      p.encodings[0].scaleResolutionDownBy = Math.max(1, cfg.screenScale);
+      p.encodings[0].priority = 'low';
+      p.encodings[0].networkPriority = 'low';
+      await vSender.setParameters(p);
+    } catch (e) { log('screen params:', e.message); }
+  }
+}
+
+function applyJitterTarget() {
+  const ms = LATENCY[cfg.latencyMode];
+  for (const conn of [A, S]) {
+    if (!conn.pc) continue;
+    for (const r of conn.pc.getReceivers()) {
+      if (r.track && r.track.kind !== 'audio') continue;
+      try {
+        if ('jitterBufferTarget' in r) r.jitterBufferTarget = ms === 0 ? null : ms;
+        else if ('playoutDelayHint' in r) r.playoutDelayHint = ms / 1000;
+      } catch (e) { /* not supported */ }
+    }
+  }
+}
+
+/* ---------------- signalling ---------------- */
+
+function sig(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function connectWs() {
+  roomFull = false;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const name = encodeURIComponent($('#name').value || 'peer');
+  ws = new WebSocket(`${proto}//${location.host}/api/room/${roomId}?name=${name}`);
+
+  ws.onopen = () => {
+    wsRetry = 0; wsAlive = true;
+    log('signalling connected');
+    setStatus('waiting for peer', 'warn');
+    showWaiting(true);
+    clearInterval(ws._ka);
+    ws._ka = setInterval(() => sig({ t: 'ping' }), 25000);
+  };
+
+  ws.onmessage = async (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    switch (m.t) {
+      case 'pong': return;
+      case 'full':
+        log('room already has two people');
+        setStatus('room full', 'bad');
+        roomFull = true;
+        return;
+      case 'hello':
+        selfMeta = m.self; polite = m.polite; initiator = m.initiator;
+        peerMeta = m.peers[0] || null;
+        log(`joined as ${selfMeta.id} (${polite ? 'polite' : 'impolite'}${initiator ? ', initiator' : ''})`);
+        if (peerMeta) {
+          showWaiting(false);
+          setStatus('peer already here — connecting…', 'warn');
+          await startPeer();
+        }
+        break;
+      case 'peer-join':
+        peerMeta = m.peer;
+        log('peer joined:', m.peer.name);
+        showWaiting(false);
+        setStatus('peer joined — connecting…', 'warn');
+        await startPeer();
+        break;
+      case 'peer-leave':
+        log('peer left');
+        peerMeta = null;
+        teardownPeer();
+        showWaiting(true);
+        break;
+      case 'sdp':
+        await (m.ch === 'a' ? A : S).onSdp(m.sdp);
+        break;
+      case 'ice':
+        await (m.ch === 'a' ? A : S).onIce(m.c);
+        break;
+      case 'please-restart':
+        await (m.ch === 'a' ? A : S).offer({ iceRestart: true });
+        break;
+      case 'req':
+        applyRemoteRequest(m.cfg);
+        break;
+      case 'screen':
+        showRemoteScreen(!!m.on);
+        break;
+    }
+  };
+
+  ws.onclose = (ev) => {
+    wsAlive = false;
+    clearInterval(ws._ka);
+    refreshHeader();
+    if (!joined) return;
+    if (ev.code === 4409 || roomFull) {
+      setStatus('room full - the other seat is taken', 'bad');
+      leave();
+      return;
+    }
+    const delay = Math.min(1000 * Math.pow(1.6, wsRetry++), 15000);
+    log(`signalling closed, retry in ${Math.round(delay / 1000)}s`);
+    setTimeout(() => { if (joined) connectWs(); }, delay);
+  };
+
+  ws.onerror = () => { /* onclose follows */ };
+}
+
+async function startPeer() {
+  if (!micStream) return;
+
+  // Build ONLY the voice connection; screen share is built lazily.
+  A.build();
+
+  // Attach the mic track BEFORE negotiating so the offer includes it.
+  const micTrack = micStream.getAudioTracks()[0];
+  if (micTrack && A.audioTx) {
+    await A.audioTx.sender.replaceTrack(micTrack);
+  }
+
+  // Now send the offer (only the initiator/newcomer drives this).
+  if (initiator) {
+    await A.offer();
+  }
+  setStatus('connecting', 'warn');
+  await applySendParams();
+}
+
+function teardownPeer() {
+  A.close(); S.close();
+  showRemoteScreen(false);
+  $('#remoteAudio').srcObject = null;
+  setStatus('waiting for peer', 'warn');
+}
+
+/* ---------------- media ---------------- */
+
+async function getMic() {
+  const c = {
+    echoCancellation: cfg.aec,
+    noiseSuppression: cfg.ns,
+    autoGainControl: cfg.agc,
+  };
+  if (cfg.micId) c.deviceId = { exact: cfg.micId };
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: c, video: false });
+  stream.getAudioTracks().forEach((t) => { t.enabled = !micMuted; });
+  return stream;
+}
+
+async function join() {
+  if (joined) return;
+  try {
+    micStream = await getMic();
+  } catch (e) {
+    log('microphone denied:', e.message);
+    setStatus('microphone blocked', 'bad');
+    return;
+  }
+  joined = true;
+  attachLocalMeter(micStream);
+  await listDevices();
+
+  // Hide pre-join, show controls
+  $('#preJoin').style.display = 'none';
+  $('#controls').classList.add('visible');
+
+  $('#btnJoin').disabled = true;
+  $('#btnLeave').disabled = false;
+  $('#btnMic').disabled = false;
+  $('#btnShare').disabled = false;
+
+  connectWs();
+  startStats();
+}
+
+function leave() {
+  joined = false;
+  stopShare();
+  teardownPeer();
+  if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+  if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
+  stopStats();
+  showWaiting(false);
+
+  // Show pre-join again
+  $('#preJoin').style.display = '';
+  $('#controls').classList.remove('visible');
+
+  $('#btnJoin').disabled = false;
+  $('#btnLeave').disabled = true;
+  $('#btnMic').disabled = true;
+  $('#btnShare').disabled = true;
+  setStatus('idle', '');
+}
+
+async function startShare() {
+  const prof = SCREEN_PROFILES[cfg.screenMode] || SCREEN_PROFILES.text;
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: cfg.screenFps, max: Math.max(cfg.screenFps, 60) } },
+      audio: cfg.shareAudio
+        ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        : false,
+    });
+  } catch (e) { log('share cancelled'); return; }
+
+  const vt = screenStream.getVideoTracks()[0];
+  if (!vt) return;
+  try { vt.contentHint = prof.hint; } catch (e) {}
+  vt.onended = () => stopShare();
+
+  sharing = true;
+  $('#btnShare').querySelector('svg + *') && ($('#btnShare').lastChild.nodeValue = '');
+  $('#btnShare').classList.add('active');
+  $('#btnShare').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Sharing`;
+  $('#localPreview').srcObject = screenStream;
+  $('#localPreview').hidden = false;
+
+  if (!S.pc) S.build();
+  if (S.videoTx) {
+    await S.videoTx.sender.replaceTrack(vt);
+    const at = screenStream.getAudioTracks()[0];
+    if (at && S.audioTx) await S.audioTx.sender.replaceTrack(at);
+    await applySendParams();
+    if (initiator) await S.offer();
+  }
+  sig({ t: 'screen', on: true });
+  log('sharing screen');
+}
+
+async function stopShare() {
+  if (!sharing) return;
+  sharing = false;
+  if (S.videoTx) { try { await S.videoTx.sender.replaceTrack(null); } catch (e) {} }
+  if (S.audioTx) { try { await S.audioTx.sender.replaceTrack(null); } catch (e) {} }
+  if (screenStream) { screenStream.getTracks().forEach((t) => t.stop()); screenStream = null; }
+  $('#btnShare').classList.remove('active');
+  $('#btnShare').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Share`;
+  $('#localPreview').hidden = true;
+  $('#localPreview').srcObject = null;
+  sig({ t: 'screen', on: false });
+  protectState.level = 1;
+}
+
+function showRemoteScreen(on) {
+  $('#remoteScreen').hidden = !on;
+  $('#noScreen').hidden = on;
+}
+
+function showWaiting(on) {
+  const w = $('#waitingScreen');
+  if (on) {
+    w.classList.add('visible');
+  } else {
+    w.classList.remove('visible');
+  }
+}
+
+async function applySink(el) {
+  if (cfg.spkId && el.setSinkId) { try { await el.setSinkId(cfg.spkId); } catch (e) {} }
+}
+
+async function listDevices() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    fill($('#micSel'), devs.filter((d) => d.kind === 'audioinput'), cfg.micId);
+    fill($('#spkSel'), devs.filter((d) => d.kind === 'audiooutput'), cfg.spkId);
+  } catch (e) {}
+  function fill(sel, list, cur) {
+    sel.innerHTML = '';
+    const def = document.createElement('option');
+    def.value = ''; def.textContent = 'System default';
+    sel.appendChild(def);
+    list.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || `Device ${i + 1}`;
+      sel.appendChild(o);
+    });
+    sel.value = cur || '';
+  }
+}
+
+/* ---------------- level meters ---------------- */
+
+function ensureCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+const meterGen = { vuLocal: 0, vuRemote: 0 };
+
+function meter(stream, el) {
+  const key = el.id;
+  const gen = ++meterGen[key];          // supersede any previous loop for this bar
+  if (!stream || !stream.getAudioTracks().length) { el.style.width = '0'; return; }
+  const ctx = ensureCtx();
+  const src = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser();
+  an.fftSize = 512; an.smoothingTimeConstant = 0.5;
+  src.connect(an);
+  const buf = new Uint8Array(an.fftSize);
+  (function tick() {
+    if (meterGen[key] !== gen) { try { src.disconnect(); } catch (e) {} return; }
+    an.getByteTimeDomainData(buf);
+    let peak = 0;
+    for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
+    el.style.width = Math.min(100, (peak / 90) * 100) + '%';
+    requestAnimationFrame(tick);
+  })();
+}
+function attachLocalMeter(s) { meter(s, $('#vuLocal')); }
+function attachRemoteMeter(s) { meter(s, $('#vuRemote')); }
+
+/* ---------------- stats + adaptive protection ---------------- */
+
+let prev = {};
+
+function startStats() { stopStats(); statsTimer = setInterval(pollStats, 1000); }
+function stopStats() { clearInterval(statsTimer); statsTimer = null; }
+
+async function pollStats() {
+  const out = {};
+  const now = performance.now();
+
+  for (const [key, conn] of [['a', A], ['s', S]]) {
+    if (!conn.pc) continue;
+    let report;
+    try { report = await conn.pc.getStats(); } catch (e) { continue; }
+    report.forEach((r) => {
+      if (r.type === 'inbound-rtp' && !r.isRemote) {
+        const id = key + 'in' + r.kind;
+        const p = prev[id];
+        out[id] = {
+          kbps: p ? rate(r.bytesReceived, p.bytesReceived, now - p.t) : 0,
+          lost: r.packetsLost || 0,
+          lostDelta: p ? Math.max(0, (r.packetsLost || 0) - p.packetsLost) : 0,
+          recvDelta: p ? Math.max(0, (r.packetsReceived || 0) - p.packetsReceived) : 0,
+          jitter: r.jitter != null ? Math.round(r.jitter * 1000) : null,
+          conceal: r.concealedSamples != null && r.totalSamplesReceived
+            ? r.concealedSamples / r.totalSamplesReceived : null,
+          fps: r.framesPerSecond,
+          w: r.frameWidth, h: r.frameHeight,
+          codec: r.codecId,
+        };
+        prev[id] = { bytesReceived: r.bytesReceived, packetsLost: r.packetsLost || 0, packetsReceived: r.packetsReceived || 0, t: now };
+      }
+      if (r.type === 'outbound-rtp' && !r.isRemote) {
+        const id = key + 'out' + r.kind;
+        const p = prev[id];
+        out[id] = {
+          kbps: p ? rate(r.bytesSent, p.bytesSent, now - p.t) : 0,
+          fps: r.framesPerSecond,
+          w: r.frameWidth, h: r.frameHeight,
+          limit: r.qualityLimitationReason,
+        };
+        prev[id] = { bytesSent: r.bytesSent, t: now };
+      }
+      if (r.type === 'remote-inbound-rtp') {
+        const id = key + 'rem' + (r.kind || 'audio');
+        out[id] = {
+          rtt: r.roundTripTime != null ? Math.round(r.roundTripTime * 1000) : null,
+          frac: r.fractionLost != null ? r.fractionLost : null,
+        };
+      }
+      if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') {
+        out[key + 'pair'] = {
+          rtt: r.currentRoundTripTime != null ? Math.round(r.currentRoundTripTime * 1000) : null,
+          avail: r.availableOutgoingBitrate ? Math.round(r.availableOutgoingBitrate / 1000) : null,
+          localId: r.localCandidateId, remoteId: r.remoteCandidateId,
+        };
+      }
+      if (r.type === 'local-candidate') out['cand_' + r.id] = r.candidateType;
+      if (r.type === 'remote-candidate') out['cand_' + r.id] = r.candidateType;
+    });
+  }
+
+  renderStats(out);
+  autoProtect(out);
+}
+
+function rate(cur, prevBytes, dtMs) {
+  if (!dtMs || cur == null || prevBytes == null) return 0;
+  return Math.max(0, ((cur - prevBytes) * 8) / dtMs); // bytes/ms*8 = kbps
+}
+
+function renderStats(o) {
+  const rows = [];
+  const ain = o.ainaudio, aout = o.aoutaudio, arem = o.aremaudio, apair = o.apair;
+  const sin = o.sinvideo, sout = o.soutvideo, spair = o.spair;
+
+  const path = apair
+    ? `${o['cand_' + apair.localId] || '?'} / ${o['cand_' + apair.remoteId] || '?'}`
+    : '-';
+
+  rows.push(['path', path + (cfg.relay ? ' (forced relay)' : '')]);
+  rows.push(['rtt (voice)', apair && apair.rtt != null ? apair.rtt + ' ms' : (arem && arem.rtt != null ? arem.rtt + ' ms' : '-')]);
+  rows.push(['est. uplink', apair && apair.avail ? apair.avail + ' kbps' : '-']);
+  rows.push(['---1', '']);
+  rows.push(['voice in', ain ? fmtK(ain.kbps) : '-']);
+  rows.push(['voice in jitter', ain && ain.jitter != null ? ain.jitter + ' ms' : '-']);
+  rows.push(['voice in loss', ain ? pct(ain.lostDelta / Math.max(1, ain.lostDelta + ain.recvDelta)) : '-']);
+  rows.push(['voice concealed', ain && ain.conceal != null ? pct(ain.conceal) : '-']);
+  rows.push(['voice out', aout ? fmtK(aout.kbps) : '-']);
+  rows.push(['voice out loss', arem && arem.frac != null ? pct(arem.frac) : '-']);
+  rows.push(['---2', '']);
+  rows.push(['screen in', sin ? fmtK(sin.kbps) : '-']);
+  rows.push(['screen in size', sin && sin.w ? `${sin.w}x${sin.h} @ ${Math.round(sin.fps || 0)}` : '-']);
+  rows.push(['screen out', sout ? fmtK(sout.kbps) : '-']);
+  rows.push(['screen out size', sout && sout.w ? `${sout.w}x${sout.h} @ ${Math.round(sout.fps || 0)}` : '-']);
+  rows.push(['screen limited by', sout && sout.limit && sout.limit !== 'none' ? sout.limit : '-']);
+  if (protectState.level < 1) rows.push(['voice protection', 'screen capped to ' + Math.round(protectState.level * 100) + '%']);
+
+  $('#statsBody').innerHTML = rows.map(([k, v]) =>
+    k.startsWith('---') ? '<tr><td colspan="2" style="height:8px"></td></tr>'
+      : `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+
+  // Header light reflects the voice link, not the screen share.
+  if (!joined) return;
+  const concealed = ain && ain.conceal != null ? ain.conceal : 0;
+  const lossOut = arem && arem.frac != null ? arem.frac : 0;
+  const connected = A.pc && ['connected', 'completed'].includes(A.pc.iceConnectionState);
+  if (!connected) setStatus(peerMeta ? 'connecting' : 'waiting for peer', 'warn');
+  else if (concealed > 0.05 || lossOut > 0.08) setStatus('connected — poor signal', 'bad');
+  else if (concealed > 0.015 || lossOut > 0.03) setStatus('connected — lossy', 'warn');
+  else setStatus('connected', 'ok');
+}
+
+function fmtK(k) { return (k >= 1000 ? (k / 1000).toFixed(2) + ' Mbps' : Math.round(k) + ' kbps'); }
+function pct(x) { return x == null ? '-' : (x * 100).toFixed(1) + '%'; }
+
+// If the voice stream is losing packets while we are sending a screen share,
+// the screen share is almost always the reason. Back it off, then recover.
+function autoProtect(o) {
+  if (!cfg.protect || !sharing) { return; }
+  const arem = o.aremaudio;
+  const loss = arem && arem.frac != null ? arem.frac : 0;
+  if (protectState.cooldown > 0) { protectState.cooldown--; return; }
+
+  if (loss > 0.03 && protectState.level > 0.2) {
+    protectState.level = Math.max(0.2, protectState.level * 0.65);
+    protectState.cooldown = 4;
+    log('voice loss ' + pct(loss) + ' - screen share capped to ' + Math.round(protectState.level * 100) + '%');
+    applySendParams();
+  } else if (loss < 0.01 && protectState.level < 1) {
+    protectState.level = Math.min(1, protectState.level * 1.25);
+    protectState.cooldown = 6;
+    applySendParams();
+  }
+}
+
+/* ---------------- remote requests ---------------- */
+
+function applyRemoteRequest(rc) {
+  if (!rc) return;
+  if (rc.screenBr) { cfg.screenBr = rc.screenBr; $('#screenBr').value = Math.round(rc.screenBr / 1000); }
+  if (rc.screenFps) { cfg.screenFps = rc.screenFps; $('#screenFps').value = rc.screenFps; }
+  cfg.screenMode = 'manual'; $('#screenMode').value = 'manual';
+  syncLabels();
+  applySendParams();
+  log('peer adjusted my screen share: ' + Math.round(cfg.screenBr / 1000) + ' kbps @ ' + cfg.screenFps + ' fps');
+}
+
+/* ---------------- renegotiation helpers ---------------- */
+
+async function renegotiate() {
+  if (S.videoTx) applyVideoCodecPrefs(S.videoTx, cfg.screenCodec);
+  if (A.audioTx) applyAudioCodecPrefs(A.audioTx);
+  if (initiator) {
+    await A.offer();
+    await S.offer();
+  } else {
+    sig({ t: 'please-restart', ch: 'a' });
+    sig({ t: 'please-restart', ch: 's' });
+  }
+}
+
+async function reopenMic() {
+  if (!joined) return;
+  const old = micStream;
+  try { micStream = await getMic(); } catch (e) { micStream = old; return; }
+  if (old) old.getTracks().forEach((t) => t.stop());
+  const t = micStream.getAudioTracks()[0];
+  t.enabled = !micMuted;
+  if (A.audioTx) await A.audioTx.sender.replaceTrack(t);
+  attachLocalMeter(micStream);
+  await applySendParams();
+}
+
+/* ---------------- UI wiring ---------------- */
+
+function copyRoomLink() {
+  const link = location.origin + '/r/' + roomId;
+  navigator.clipboard.writeText(link).catch(() => {});
+}
+
+function syncLabels() {
+  $('#labAudioTx').textContent = Math.round(cfg.audioTx / 1000) + ' kbps' + (cfg.red ? ' (+RED)' : '');
+  $('#labAudioRx').textContent = Math.round(cfg.audioRx / 1000) + ' kbps';
+  $('#labScreenBr').textContent = fmtK(cfg.screenBr / 1000);
+  $('#labScreenFps').textContent = cfg.screenFps + ' fps';
+  $('#labScreenScale').textContent = cfg.screenScale === 1 ? '1x (native)' : cfg.screenScale.toFixed(1) + 'x down';
+  $('#labReqBr').textContent = fmtK($('#reqBr').value * 1);
+  $('#labReqFps').textContent = $('#reqFps').value + ' fps';
+}
+
+function refreshHeader() {
+  if (!joined) return;
+  if (!wsAlive) setStatus('signalling offline — retrying', 'bad');
+}
+
+function applyScreenProfile(name) {
+  const p = SCREEN_PROFILES[name];
+  if (!p) return;
+  cfg.screenBr = p.br * 1000; cfg.screenFps = p.fps; cfg.screenScale = p.scale;
+  $('#screenBr').value = p.br; $('#screenFps').value = p.fps; $('#screenScale').value = Math.round(p.scale * 10);
+  if (screenStream) {
+    const vt = screenStream.getVideoTracks()[0];
+    if (vt) { try { vt.contentHint = p.hint; } catch (e) {} }
+  }
+  syncLabels();
+  applySendParams();
+}
+
+function wire() {
+  // Keep #roomLink in sync (used by original JS internally)
+  const roomLink = location.origin + '/r/' + roomId;
+  $('#roomLink').value = roomLink;
+
+  // Show link in pre-join and waiting views
+  if ($('#linkDisplayRoom')) $('#linkDisplayRoom').textContent = roomLink;
+  if ($('#waitingLinkDisplay')) $('#waitingLinkDisplay').textContent = roomLink;
+
+  $('#name').value = localStorage.getItem('duo.name') || '';
+
+  // Copy button in pre-join card
+  $('#btnCopy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopy').textContent = 'Copied!';
+      setTimeout(() => ($('#btnCopy').textContent = 'Copy link'), 1400);
+    } catch (e) {
+      $('#roomLink').select();
+    }
+  };
+
+  // Copy in waiting state
+  $('#btnCopyWaiting').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopyWaiting').textContent = 'Copied!';
+      setTimeout(() => ($('#btnCopyWaiting').textContent = 'Copy'), 1400);
+    } catch (e) {}
+  };
+
+  // Invite button in bottom bar
+  $('#btnCopyCtrl').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopyCtrl').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Copied!`;
+      setTimeout(() => {
+        $('#btnCopyCtrl').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Invite`;
+      }, 1400);
+    } catch (e) {}
+  };
+
+  $('#btnJoin').onclick = () => { ensureCtx(); join(); };
+  $('#btnLeave').onclick = leave;
+
+  $('#btnMic').onclick = () => {
+    micMuted = !micMuted;
+    if (micStream) micStream.getAudioTracks().forEach((t) => (t.enabled = !micMuted));
+    if (micMuted) {
+      $('#btnMic').classList.add('danger');
+      $('#btnMic').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M3 3l14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 10a6 6 0 0 0 10.3 4.2M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Muted`;
+    } else {
+      $('#btnMic').classList.remove('danger');
+      $('#btnMic').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 10a6 6 0 0 0 12 0M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Mic on`;
+    }
+  };
+
+  $('#btnShare').onclick = () => (sharing ? stopShare() : startShare());
+  $('#btnIceRestart').onclick = () => { A.restartIce(); S.restartIce(); };
+  $('#btnRenegotiate').onclick = renegotiate;
+
+  $('#name').oninput = (e) => localStorage.setItem('duo.name', e.target.value);
+
+  $('#latencyMode').onchange = (e) => { cfg.latencyMode = e.target.value; applyJitterTarget(); log('buffer target ' + LATENCY[cfg.latencyMode] + ' ms'); };
+
+  $('#audioTx').oninput = (e) => { cfg.audioTx = e.target.value * 1000; syncLabels(); applySendParams(); };
+  $('#audioRx').oninput = (e) => { cfg.audioRx = e.target.value * 1000; syncLabels(); };
+  $('#audioRx').onchange = () => renegotiate();
+
+  $('#optRed').onchange = (e) => { cfg.red = e.target.checked; syncLabels(); renegotiate(); };
+  $('#optFec').onchange = (e) => { cfg.fec = e.target.checked; renegotiate(); };
+  $('#optDtx').onchange = (e) => { cfg.dtx = e.target.checked; applySendParams(); renegotiate(); };
+
+  for (const [id, key] of [['optAec', 'aec'], ['optNs', 'ns'], ['optAgc', 'agc']]) {
+    $('#' + id).onchange = (e) => { cfg[key] = e.target.checked; reopenMic(); };
+  }
+  $('#micSel').onchange = (e) => { cfg.micId = e.target.value; reopenMic(); };
+  $('#spkSel').onchange = (e) => { cfg.spkId = e.target.value; applySink($('#remoteAudio')); applySink($('#remoteScreenAudio')); };
+
+  $('#screenMode').onchange = (e) => { cfg.screenMode = e.target.value; applyScreenProfile(e.target.value); };
+  $('#screenBr').oninput = (e) => { cfg.screenBr = e.target.value * 1000; cfg.screenMode = 'manual'; $('#screenMode').value = 'manual'; syncLabels(); applySendParams(); };
+  $('#screenFps').oninput = (e) => { cfg.screenFps = e.target.value * 1; cfg.screenMode = 'manual'; $('#screenMode').value = 'manual'; syncLabels(); applySendParams(); };
+  $('#screenScale').oninput = (e) => { cfg.screenScale = e.target.value / 10; syncLabels(); applySendParams(); };
+  $('#screenCodec').onchange = (e) => { cfg.screenCodec = e.target.value; renegotiate(); };
+  $('#optShareAudio').onchange = (e) => { cfg.shareAudio = e.target.checked; };
+  $('#optProtect').onchange = (e) => { cfg.protect = e.target.checked; if (!cfg.protect) { protectState.level = 1; applySendParams(); } };
+
+  $('#optRelay').onchange = async (e) => {
+    cfg.relay = e.target.checked;
+    log('ice policy: ' + (cfg.relay ? 'relay only' : 'all'));
+    if (joined && peerMeta) { teardownPeer(); await startPeer(); }
+  };
+
+  $('#reqBr').oninput = syncLabels;
+  $('#reqFps').oninput = syncLabels;
+  $('#btnReq').onclick = () => {
+    sig({ t: 'req', cfg: { screenBr: $('#reqBr').value * 1000, screenFps: $('#reqFps').value * 1 } });
+    log('asked peer for ' + $('#reqBr').value + ' kbps @ ' + $('#reqFps').value + ' fps');
+  };
+
+  // Settings panel toggle
+  $('#btnSettings').onclick = () => {
+    const panel = $('#settingsPanel');
+    const isOpen = panel.classList.toggle('open');
+    $('#btnSettings').classList.toggle('active', isOpen);
+  };
+
+  $('#btnCloseSettings').onclick = () => {
+    $('#settingsPanel').classList.remove('open');
+    $('#btnSettings').classList.remove('active');
+  };
+
+  navigator.mediaDevices.addEventListener?.('devicechange', listDevices);
+  window.addEventListener('beforeunload', () => { try { ws && ws.close(); } catch (e) {} });
+
+  syncLabels();
+}
+
+function checkCompat() {
+  const msgs = [];
+  if (!window.RTCPeerConnection) msgs.push('This browser has no WebRTC.');
+  if (!navigator.mediaDevices?.getDisplayMedia) msgs.push('Screen sharing is unavailable. Use desktop Chrome, Edge or Firefox.');
+  if (!window.isSecureContext) msgs.push('Not a secure context — microphone needs HTTPS.');
+  const caps = window.RTCRtpReceiver?.getCapabilities?.('audio');
+  if (caps && !caps.codecs.some((c) => /\/red$/i.test(c.mimeType))) {
+    msgs.push('This browser does not support Opus RED. Voice still works, just without redundancy.');
+  }
+  if (msgs.length) { $('#compat').hidden = false; $('#compat').textContent = msgs.join(' '); }
+}
+
+async function loadIce() {
+  try {
+    const r = await fetch('/api/ice');
+    const d = await r.json();
+    if (d.iceServers) { iceServers = d.iceServers; hasTurn = !!d.turn; }
+    log(hasTurn ? 'ICE: STUN + Cloudflare TURN' : 'ICE: STUN only (no TURN configured)');
+    if (!hasTurn) $('#optRelay').disabled = true;
+  } catch (e) { log('ICE fetch failed, using default STUN'); }
+}
+
+wire();
+checkCompat();
+loadIce();
+</script>
+</body>
+</html>

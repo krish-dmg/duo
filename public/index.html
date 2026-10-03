@@ -4,123 +4,740 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>duo</title>
+<title>duo — room</title>
+
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
+  :root {
+    color-scheme: dark;
+    --bg: #09090c;
+    --surface: #111118;
+    --surface-2: #16161e;
+    --surface-3: #1c1c26;
+    --border: #1e1e2a;
+    --border-2: #2a2a3a;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --muted-2: #9090a8;
+    --accent: #6366f1;
+    --accent-dim: rgba(99,102,241,.12);
+    --accent-hover: #818cf8;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,.1);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,.12);
+    --amber: #f59e0b;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    margin: 0; background: #101214; color: #d8dde3;
-    font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
-  header {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 8px 12px; border-bottom: 1px solid #24282d; background: #16191d;
-    position: sticky; top: 0; z-index: 5;
+
+  /* ── Top header ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    z-index: 10;
   }
-  main { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 45px); }
-  #side { overflow-y: auto; border-right: 1px solid #24282d; padding: 10px 12px 40px; }
-  #stage { position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+
+  .brand-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .brand-icon svg { display: block; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
+
+  #status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background .3s;
+  }
+  .dot.ok { background: var(--green); }
+  .dot.warn { background: var(--amber); }
+  .dot.bad { background: var(--red); }
+
+  .spacer { flex: 1; }
+
+  #btnSettings {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  #btnSettings:hover { background: var(--surface-2); color: var(--text); }
+  #btnSettings.active { background: var(--accent-dim); color: var(--accent-hover); border-color: rgba(99,102,241,.3); }
+
+  /* ── Main layout ── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Stage (center video area) ── */
+  #stage {
+    flex: 1;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
   video { max-width: 100%; max-height: 100%; background: #000; display: block; }
   #remoteScreen { width: 100%; height: 100%; object-fit: contain; }
   #localPreview {
-    position: absolute; right: 8px; bottom: 8px; width: 200px; border: 1px solid #2c3138;
-    opacity: .85;
+    position: absolute;
+    right: 12px;
+    bottom: 80px;
+    width: 180px;
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,.12);
+    opacity: .9;
   }
-  #noScreen { color: #5c646e; font-size: 12px; text-align: center; padding: 20px; }
-  button {
-    font: inherit; background: #232830; color: #d8dde3; border: 1px solid #363d46;
-    padding: 5px 10px; cursor: pointer; border-radius: 3px;
+  audio { display: none; }
+
+  /* ── Pre-join overlay (shown before user clicks Join) ── */
+  #preJoin {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 5;
   }
-  button:hover:not(:disabled) { background: #2c333c; }
-  button:disabled { opacity: .4; cursor: default; }
-  button.on { background: #1f4d33; border-color: #2f7a51; }
-  button.danger { background: #4d2323; border-color: #7a3232; }
+
+  .prejoin-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .pj-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    color: var(--text);
+  }
+
+  .pj-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.55;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 9px;
+    font: 14px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .field-input:focus { border-color: rgba(99,102,241,.5); }
+  .field-input::placeholder { color: var(--muted); }
+
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 9px;
+    padding: 8px 8px 8px 12px;
+  }
+
+  .link-url-text {
+    flex: 1;
+    font-size: 12.5px;
+    color: var(--muted-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: ui-monospace, monospace;
+  }
+
+  #btnCopy {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+    border: 1px solid rgba(99,102,241,.2);
+    border-radius: 7px;
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+
+  #btnCopy:hover { background: rgba(99,102,241,.2); }
+
+  .hint-inline {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* Compat warning */
+  #compat {
+    background: rgba(245,158,11,.1);
+    border: 1px solid rgba(245,158,11,.25);
+    color: var(--amber);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  #btnJoin {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font: 600 15px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #btnJoin:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 28px rgba(129,140,248,.45); }
+  #btnJoin:active { transform: translateY(0); }
+  #btnJoin:disabled { opacity: .4; cursor: default; transform: none; box-shadow: none; }
+
+  /* ── Waiting state (shown after join, waiting for peer) ── */
+  #waitingScreen {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    z-index: 4;
+  }
+
+  #waitingScreen.visible { display: flex; }
+
+  .waiting-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--border-2);
+    border-top-color: var(--accent);
+    animation: spin 1.2s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .waiting-text {
+    text-align: center;
+  }
+
+  .waiting-text h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -.3px;
+    margin-bottom: 6px;
+  }
+
+  .waiting-text p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .waiting-invite {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .waiting-invite .field-label { margin-bottom: 8px; }
+
+  /* ── No screen placeholder ── */
+  #noScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #noScreen svg { opacity: .3; }
+
+  /* ── Bottom control bar ── */
+  #controls {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  #controls.visible { display: flex; }
+
+  .ctrl-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    transition: background .15s, color .15s, border-color .15s;
+    min-width: 64px;
+  }
+
+  .ctrl-btn svg { width: 20px; height: 20px; }
+  .ctrl-btn:hover:not(:disabled) { background: var(--surface-3); }
+  .ctrl-btn:disabled { opacity: .35; cursor: default; }
+
+  .ctrl-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+    border-color: rgba(99,102,241,.3);
+  }
+
+  .ctrl-btn.danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border-color: rgba(239,68,68,.2);
+  }
+
+  .ctrl-btn.leave {
+    background: var(--red-dim);
+    color: var(--red);
+    border-color: rgba(239,68,68,.2);
+  }
+
+  .ctrl-btn.leave:hover { background: rgba(239,68,68,.2); }
+
+  /* VU meters in controls */
+  .vu-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    min-width: 80px;
+  }
+
+  .vu-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+  .meter {
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meter > i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--green);
+    transition: width .06s linear;
+    border-radius: 2px;
+  }
+
+  /* ── Settings panel (slide-in from right) ── */
+  #settingsPanel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+    z-index: 20;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #settingsPanel.open { transform: translateX(0); }
+
+  #settingsPanel::-webkit-scrollbar { width: 4px; }
+  #settingsPanel::-webkit-scrollbar-track { background: transparent; }
+  #settingsPanel::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -.2px;
+  }
+
+  #btnCloseSettings {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  #btnCloseSettings:hover { background: var(--surface-2); color: var(--text); }
+
+  /* fieldsets inside settings */
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px 14px;
+    background: var(--surface-2);
+  }
+
+  legend {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    padding: 0 6px;
+  }
+
+  label {
+    display: block;
+    margin: 9px 0 3px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
   select, input[type=text], input[type=number] {
-    font: inherit; background: #1b1f24; color: #d8dde3; border: 1px solid #333940;
-    padding: 3px 5px; border-radius: 3px; width: 100%;
+    font: 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    padding: 5px 7px;
+    border-radius: 7px;
+    width: 100%;
+    outline: none;
   }
-  input[type=range] { width: 100%; }
-  label { display: block; margin: 9px 0 2px; color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-  fieldset { border: 1px solid #24282d; border-radius: 4px; margin: 0 0 12px; padding: 6px 10px 12px; }
-  legend { color: #7d8794; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 0 4px; }
+
+  select:focus, input:focus { border-color: rgba(99,102,241,.4); }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  .val { color: var(--muted-2); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+  .chk {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 6px 0;
+    color: var(--muted-2);
+    font-size: 12px;
+  }
+  .chk input { flex: 0 0 auto; width: auto; accent-color: var(--accent); }
+  .chk label { margin: 0; text-transform: none; letter-spacing: 0; color: var(--muted-2); font-size: 12px; }
+
   .row { display: flex; gap: 6px; align-items: center; }
   .row > * { flex: 1; }
-  .row.tight > button { flex: 0 0 auto; }
-  .chk { display: flex; align-items: center; gap: 6px; margin: 5px 0; color: #b7bfc8; text-transform: none; font-size: 12px; letter-spacing: 0; }
-  .chk input { flex: 0 0 auto; width: auto; }
-  .val { color: #9aa4af; font-variant-numeric: tabular-nums; }
-  #status { color: #8b949e; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6b7580; margin-right: 5px; vertical-align: middle; }
-  .dot.ok { background: #3fb950; } .dot.warn { background: #d29922; } .dot.bad { background: #f85149; }
-  table.stats { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+
+  .btn-small {
+    font: 500 12px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 7px;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-small:hover { background: var(--surface-3); }
+  .btn-small:disabled { opacity: .4; cursor: default; }
+
+  /* Stats & Log */
+  table.stats { width: 100%; border-collapse: collapse; font-size: 11px; }
   table.stats td { padding: 2px 0; vertical-align: top; }
-  table.stats td:first-child { color: #7d8794; width: 46%; }
+  table.stats td:first-child { color: var(--muted); width: 50%; }
   table.stats td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-  .meter { height: 6px; background: #1b1f24; border: 1px solid #2c3138; border-radius: 3px; overflow: hidden; }
-  .meter > i { display: block; height: 100%; width: 0; background: #3fb950; transition: width .06s linear; }
-  .hint { color: #6e7781; font-size: 11px; margin: 4px 0 0; }
-  .warnbox { background: #3a2a12; border: 1px solid #6b4a15; color: #e3c07b; padding: 6px 8px; border-radius: 3px; margin-bottom: 10px; font-size: 11.5px; }
-  #log { font-size: 11px; color: #6e7781; max-height: 130px; overflow-y: auto; white-space: pre-wrap; }
-  code { background: #1b1f24; padding: 1px 4px; border-radius: 3px; }
+
+  #log {
+    font-size: 10.5px;
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  /* Hidden elements that the JS still needs */
+  #roomLink { display: none; }
+
+  /* Mobile bottom bar adjustments */
+  @media (max-width: 600px) {
+    #settingsPanel { width: 100%; }
+    .ctrl-btn { min-width: 54px; padding: 9px 12px; font-size: 10px; }
+    .vu-wrap { display: none; }
+    #localPreview { width: 120px; bottom: 90px; }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <strong>duo</strong>
-  <span id="status"><span class="dot"></span>idle</span>
-  <button id="btnJoin">Join</button>
-  <button id="btnLeave" disabled>Leave</button>
-  <button id="btnMic" disabled>Mute mic</button>
-  <button id="btnShare" disabled>Share screen</button>
-  <span style="flex:1"></span>
-  <button id="btnCopy">Copy room link</button>
-</header>
+<!-- Header -->
+<div id="header">
+  <a class="brand" href="/">
+    <div class="brand-icon">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+        <circle cx="7" cy="10" r="4" fill="white" opacity=".9"/>
+        <circle cx="13" cy="10" r="4" fill="white" opacity=".5"/>
+      </svg>
+    </div>
+    <span class="brand-name">duo</span>
+  </a>
 
-<main>
-  <div id="side">
-    <div id="compat" class="warnbox" hidden></div>
+  <div id="status"><span class="dot"></span>idle</div>
 
-    <fieldset>
-      <legend>Link</legend>
-      <div class="row tight">
-        <input type="text" id="roomLink" readonly>
+  <div class="spacer"></div>
+
+  <button id="btnSettings" title="Settings">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M7.5 5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.75 2.75l1.06 1.06M11.19 11.19l1.06 1.06M2.75 12.25l1.06-1.06M11.19 3.81l1.06-1.06" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Main area -->
+<div id="main">
+
+  <!-- Video stage -->
+  <div id="stage">
+    <div id="noScreen">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect x="6" y="10" width="36" height="26" rx="3" stroke="currentColor" stroke-width="2"/>
+        <path d="M18 36v4M30 36v4M14 40h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      No screen shared
+    </div>
+    <video id="remoteScreen" autoplay playsinline hidden></video>
+    <video id="localPreview" autoplay playsinline muted hidden></video>
+    <audio id="remoteAudio" autoplay></audio>
+    <audio id="remoteScreenAudio" autoplay></audio>
+  </div>
+
+  <!-- Pre-join overlay -->
+  <div id="preJoin">
+    <div class="prejoin-card">
+      <div>
+        <div class="pj-title">Join the call</div>
+        <div class="pj-sub">Share the link with your friend first, then jump in.</div>
       </div>
-      <p class="hint">Send this once. Anyone with it can join, and the room holds two people.</p>
-      <label>Your name</label>
-      <input type="text" id="name" maxlength="24" placeholder="me">
-    </fieldset>
+
+      <div id="compat" hidden></div>
+
+      <!-- Invite link -->
+      <div>
+        <div class="field-label">Room link — share this</div>
+        <div class="link-row">
+          <span class="link-url-text" id="linkDisplayRoom"></span>
+          <button id="btnCopy">Copy link</button>
+        </div>
+      </div>
+
+      <!-- Hidden input that JS writes to (kept for compat) -->
+      <input type="text" id="roomLink" readonly>
+
+      <!-- Name -->
+      <div>
+        <div class="field-label">Your name</div>
+        <input type="text" id="name" class="field-input" maxlength="24" placeholder="Enter your name...">
+      </div>
+
+      <button id="btnJoin">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6.5" stroke="white" stroke-width="1.4"/>
+          <circle cx="8" cy="8" r="3" fill="white"/>
+        </svg>
+        Join call
+      </button>
+    </div>
+  </div>
+
+  <!-- Waiting state (after join, before peer) -->
+  <div id="waitingScreen">
+    <div class="waiting-ring"></div>
+    <div class="waiting-text">
+      <h2>Waiting for your friend...</h2>
+      <p>Share the link and they can join instantly.</p>
+    </div>
+    <div class="waiting-invite">
+      <div class="field-label">Room link</div>
+      <div class="link-row" style="margin-top:0">
+        <span class="link-url-text" id="waitingLinkDisplay"></span>
+        <button class="btn-small" id="btnCopyWaiting">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
+  <div id="settingsPanel">
+    <div class="panel-header">
+      <span class="panel-title">Settings</span>
+      <button id="btnCloseSettings">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
 
     <fieldset>
       <legend>Voice</legend>
-      <div class="meter" title="your mic level"><i id="vuLocal"></i></div>
-      <div class="meter" style="margin-top:4px" title="incoming level"><i id="vuRemote"></i></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="field-label" style="font-size:9px;margin-bottom:3px">Your mic</div>
+          <div class="meter"><i id="vuLocal"></i></div>
+        </div>
+        <div style="flex:1">
+          <div class="field-label" style="font-size:9px;margin-bottom:3px">Incoming</div>
+          <div class="meter"><i id="vuRemote"></i></div>
+        </div>
+      </div>
 
       <label>Latency vs stability</label>
       <select id="latencyMode">
-        <option value="instant">Instant - lowest delay, breaks up first</option>
-        <option value="balanced" selected>Balanced - ~80 ms buffer</option>
-        <option value="stable">Stable - ~200 ms buffer, survives bad spikes</option>
-        <option value="rough">Rough link - ~400 ms buffer</option>
+        <option value="instant">Instant — lowest delay</option>
+        <option value="balanced" selected>Balanced — ~80ms buffer</option>
+        <option value="stable">Stable — ~200ms buffer</option>
+        <option value="rough">Rough link — ~400ms buffer</option>
       </select>
 
-      <label>My outgoing voice bitrate: <span class="val" id="labAudioTx">40 kbps</span></label>
+      <label>Outgoing bitrate: <span class="val" id="labAudioTx">40 kbps</span></label>
       <input type="range" id="audioTx" min="12" max="128" step="4" value="40">
 
-      <label>Ask peer to send me: <span class="val" id="labAudioRx">32 kbps</span></label>
+      <label>Ask peer to send: <span class="val" id="labAudioRx">32 kbps</span></label>
       <input type="range" id="audioRx" min="12" max="128" step="4" value="32">
-      <p class="hint">Lower this one if his upload is the bottleneck. Opus is already clean at 24-32 kbps mono.</p>
 
-      <div class="chk"><input type="checkbox" id="optRed" checked><label for="optRed" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">RED redundancy (send each packet twice)</label></div>
-      <div class="chk"><input type="checkbox" id="optFec" checked><label for="optFec" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Opus in-band FEC</label></div>
-      <div class="chk"><input type="checkbox" id="optDtx"><label for="optDtx" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">DTX (send nothing during silence)</label></div>
-      <p class="hint">RED is the big one for a link that drops packets. It roughly doubles voice bitrate but recovers almost everything up to 20 percent loss.</p>
+      <div class="chk"><input type="checkbox" id="optRed" checked><label for="optRed">RED redundancy (packet recovery)</label></div>
+      <div class="chk"><input type="checkbox" id="optFec" checked><label for="optFec">Opus in-band FEC</label></div>
+      <div class="chk"><input type="checkbox" id="optDtx"><label for="optDtx">DTX (silence suppression)</label></div>
+    </fieldset>
 
-      <label>Mic processing</label>
-      <div class="chk"><input type="checkbox" id="optAec" checked><label for="optAec" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Echo cancellation</label></div>
-      <div class="chk"><input type="checkbox" id="optNs" checked><label for="optNs" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Noise suppression</label></div>
-      <div class="chk"><input type="checkbox" id="optAgc" checked><label for="optAgc" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Auto gain</label></div>
-
+    <fieldset>
+      <legend>Microphone</legend>
+      <div class="chk"><input type="checkbox" id="optAec" checked><label for="optAec">Echo cancellation</label></div>
+      <div class="chk"><input type="checkbox" id="optNs" checked><label for="optNs">Noise suppression</label></div>
+      <div class="chk"><input type="checkbox" id="optAgc" checked><label for="optAgc">Auto gain control</label></div>
       <label>Microphone</label>
       <select id="micSel"></select>
       <label>Speaker</label>
@@ -131,9 +748,9 @@
       <legend>Screen share</legend>
       <label>Content profile</label>
       <select id="screenMode">
-        <option value="text" selected>Code / text - sharp, low frame rate</option>
+        <option value="text" selected>Code / text — sharp, low fps</option>
         <option value="balanced">Balanced</option>
-        <option value="motion">Motion / video - smooth, softer</option>
+        <option value="motion">Motion / video — smooth</option>
         <option value="manual">Manual</option>
       </select>
 
@@ -148,15 +765,14 @@
 
       <label>Codec</label>
       <select id="screenCodec">
-        <option value="VP9" selected>VP9 - best for text, moderate CPU</option>
-        <option value="AV1">AV1 - best compression, heavy CPU</option>
-        <option value="VP8">VP8 - lightest CPU</option>
-        <option value="H264">H264 - hardware encoder if present</option>
+        <option value="VP9" selected>VP9 — best for text</option>
+        <option value="AV1">AV1 — best compression</option>
+        <option value="VP8">VP8 — lightest CPU</option>
+        <option value="H264">H264 — hardware encoder</option>
       </select>
-      <p class="hint">If his CPU is loaded, VP8 or H264 will stutter less than VP9 or AV1.</p>
 
-      <div class="chk"><input type="checkbox" id="optShareAudio"><label for="optShareAudio" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Include system / tab audio when sharing</label></div>
-      <div class="chk"><input type="checkbox" id="optProtect" checked><label for="optProtect" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Protect voice - throttle screen share when packets drop</label></div>
+      <div class="chk"><input type="checkbox" id="optShareAudio"><label for="optShareAudio">Include system audio</label></div>
+      <div class="chk"><input type="checkbox" id="optProtect" checked><label for="optProtect">Protect voice on packet loss</label></div>
     </fieldset>
 
     <fieldset>
@@ -165,17 +781,15 @@
       <input type="range" id="reqBr" min="100" max="6000" step="100" value="700">
       <label>Their frame rate: <span class="val" id="labReqFps">5 fps</span></label>
       <input type="range" id="reqFps" min="1" max="60" step="1" value="5">
-      <button id="btnReq" style="margin-top:8px;width:100%">Apply to peer</button>
-      <p class="hint">Sets the caps on his encoder from your side. Useful when he cannot get to his own settings.</p>
+      <button class="btn-small" id="btnReq" style="margin-top:8px;width:100%">Apply to peer</button>
     </fieldset>
 
     <fieldset>
       <legend>Network</legend>
-      <div class="chk"><input type="checkbox" id="optRelay"><label for="optRelay" style="margin:0;text-transform:none;font-size:12px;color:#b7bfc8">Force TURN relay</label></div>
-      <p class="hint">Direct is normally faster. On some ISPs the route through Cloudflare is actually more stable - worth trying if direct keeps breaking.</p>
+      <div class="chk"><input type="checkbox" id="optRelay"><label for="optRelay">Force TURN relay</label></div>
       <div class="row" style="margin-top:8px">
-        <button id="btnIceRestart">Repair connection</button>
-        <button id="btnRenegotiate">Renegotiate</button>
+        <button class="btn-small" id="btnIceRestart">Repair connection</button>
+        <button class="btn-small" id="btnRenegotiate">Renegotiate</button>
       </div>
     </fieldset>
 
@@ -190,14 +804,49 @@
     </fieldset>
   </div>
 
-  <div id="stage">
-    <div id="noScreen">No screen shared.<br>Audio-only calls do not need this panel.</div>
-    <video id="remoteScreen" autoplay playsinline hidden></video>
-    <video id="localPreview" autoplay playsinline muted hidden></video>
-    <audio id="remoteAudio" autoplay></audio>
-    <audio id="remoteScreenAudio" autoplay></audio>
+</div>
+
+<!-- Bottom controls bar (hidden until joined) -->
+<div id="controls">
+  <div class="vu-wrap">
+    <div class="vu-label">Mic</div>
+    <div class="meter"><i id="vuLocalCtrl"></i></div>
+    <div class="vu-label" style="margin-top:4px">Peer</div>
+    <div class="meter"><i id="vuRemoteCtrl"></i></div>
   </div>
-</main>
+
+  <button class="ctrl-btn" id="btnMic" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M4 10a6 6 0 0 0 12 0M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Mic on
+  </button>
+
+  <button class="ctrl-btn" id="btnShare" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Share
+  </button>
+
+  <button class="ctrl-btn" id="btnCopyCtrl">
+    <svg viewBox="0 0 20 20" fill="none">
+      <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Invite
+  </button>
+
+  <button class="ctrl-btn leave" id="btnLeave" disabled>
+    <svg viewBox="0 0 20 20" fill="none">
+      <path d="M13.5 6.5L17 10l-3.5 3.5M17 10H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10 4H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Leave
+  </button>
+</div>
 
 <script>
 "use strict";
@@ -251,7 +900,7 @@ const SCREEN_PROFILES = {
 
 let ws = null, wsRetry = 0, wsAlive = false, roomFull = false;
 let selfMeta = null, peerMeta = null, polite = true, initiator = false;
-let iceServers = [{ urls: ['stun:stun.cloudflare.com:3478'] }], hasTurn = false;
+let iceServers = [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }], hasTurn = false;
 let micStream = null, screenStream = null;
 let joined = false, micMuted = false, sharing = false;
 let audioCtx = null, statsTimer = null, protectState = { level: 1, cooldown: 0 };
@@ -297,8 +946,9 @@ class Conn {
     };
 
     pc.onnegotiationneeded = async () => {
-      if (!initiator && !this.everNegotiated) return; // newcomer drives the first offer
-      await this.offer();
+      // We drive all offers manually (in startPeer / startShare).
+      // Suppress auto-negotiation here to prevent race conditions
+      // where the offer fires before tracks are attached.
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -313,6 +963,7 @@ class Conn {
         }, 3000);
       } else if (st === 'connected' || st === 'completed') {
         clearTimeout(this.recoverTimer);
+        if (this.ch === 'a') setStatus('connected', 'ok');
       }
       refreshHeader();
     };
@@ -336,18 +987,25 @@ class Conn {
     if (this.ch === 'a' && track.kind === 'audio') {
       const el = $('#remoteAudio');
       el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.muted = false;
+      el.volume = 1.0;
+      el.play().catch(err => log('remoteAudio play failed:', err));
       applySink(el);
       attachRemoteMeter(el.srcObject);
       applyJitterTarget();
     } else if (this.ch === 's' && track.kind === 'video') {
       const el = $('#remoteScreen');
       el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.play().catch(err => log('remoteScreen play failed:', err));
       track.onunmute = () => showRemoteScreen(true);
       track.onmute = () => showRemoteScreen(false);
       if (!track.muted) showRemoteScreen(true);
     } else if (this.ch === 's' && track.kind === 'audio') {
       const el = $('#remoteScreenAudio');
       el.srcObject = e.streams[0] || new MediaStream([track]);
+      el.muted = false;
+      el.volume = 1.0;
+      el.play().catch(err => log('remoteScreenAudio play failed:', err));
       applySink(el);
     }
   }
@@ -570,6 +1228,7 @@ function connectWs() {
     wsRetry = 0; wsAlive = true;
     log('signalling connected');
     setStatus('waiting for peer', 'warn');
+    showWaiting(true);
     clearInterval(ws._ka);
     ws._ka = setInterval(() => sig({ t: 'ping' }), 25000);
   };
@@ -587,17 +1246,24 @@ function connectWs() {
         selfMeta = m.self; polite = m.polite; initiator = m.initiator;
         peerMeta = m.peers[0] || null;
         log(`joined as ${selfMeta.id} (${polite ? 'polite' : 'impolite'}${initiator ? ', initiator' : ''})`);
-        if (peerMeta) await startPeer();
+        if (peerMeta) {
+          showWaiting(false);
+          setStatus('peer already here — connecting…', 'warn');
+          await startPeer();
+        }
         break;
       case 'peer-join':
         peerMeta = m.peer;
         log('peer joined:', m.peer.name);
+        showWaiting(false);
+        setStatus('peer joined — connecting…', 'warn');
         await startPeer();
         break;
       case 'peer-leave':
         log('peer left');
         peerMeta = null;
         teardownPeer();
+        showWaiting(true);
         break;
       case 'sdp':
         await (m.ch === 'a' ? A : S).onSdp(m.sdp);
@@ -637,16 +1303,20 @@ function connectWs() {
 
 async function startPeer() {
   if (!micStream) return;
-  A.build(); S.build();
 
-  await A.audioTx.sender.replaceTrack(micStream.getAudioTracks()[0]);
-  if (sharing && screenStream) {
-    await S.videoTx.sender.replaceTrack(screenStream.getVideoTracks()[0] || null);
-    const sa = screenStream.getAudioTracks()[0];
-    if (sa) await S.audioTx.sender.replaceTrack(sa);
+  // Build ONLY the voice connection; screen share is built lazily.
+  A.build();
+
+  // Attach the mic track BEFORE negotiating so the offer includes it.
+  const micTrack = micStream.getAudioTracks()[0];
+  if (micTrack && A.audioTx) {
+    await A.audioTx.sender.replaceTrack(micTrack);
   }
 
-  if (initiator) { await A.offer(); await S.offer(); }
+  // Now send the offer (only the initiator/newcomer drives this).
+  if (initiator) {
+    await A.offer();
+  }
   setStatus('connecting', 'warn');
   await applySendParams();
 }
@@ -665,11 +1335,11 @@ async function getMic() {
     echoCancellation: cfg.aec,
     noiseSuppression: cfg.ns,
     autoGainControl: cfg.agc,
-    channelCount: 1,
-    sampleRate: 48000,
   };
   if (cfg.micId) c.deviceId = { exact: cfg.micId };
-  return navigator.mediaDevices.getUserMedia({ audio: c, video: false });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: c, video: false });
+  stream.getAudioTracks().forEach((t) => { t.enabled = !micMuted; });
+  return stream;
 }
 
 async function join() {
@@ -684,10 +1354,16 @@ async function join() {
   joined = true;
   attachLocalMeter(micStream);
   await listDevices();
+
+  // Hide pre-join, show controls
+  $('#preJoin').style.display = 'none';
+  $('#controls').classList.add('visible');
+
   $('#btnJoin').disabled = true;
   $('#btnLeave').disabled = false;
   $('#btnMic').disabled = false;
   $('#btnShare').disabled = false;
+
   connectWs();
   startStats();
 }
@@ -699,6 +1375,12 @@ function leave() {
   if (ws) { try { ws.close(); } catch (e) {} ws = null; }
   if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
   stopStats();
+  showWaiting(false);
+
+  // Show pre-join again
+  $('#preJoin').style.display = '';
+  $('#controls').classList.remove('visible');
+
   $('#btnJoin').disabled = false;
   $('#btnLeave').disabled = true;
   $('#btnMic').disabled = true;
@@ -723,16 +1405,19 @@ async function startShare() {
   vt.onended = () => stopShare();
 
   sharing = true;
-  $('#btnShare').textContent = 'Stop sharing';
-  $('#btnShare').classList.add('on');
+  $('#btnShare').querySelector('svg + *') && ($('#btnShare').lastChild.nodeValue = '');
+  $('#btnShare').classList.add('active');
+  $('#btnShare').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Sharing`;
   $('#localPreview').srcObject = screenStream;
   $('#localPreview').hidden = false;
 
+  if (!S.pc) S.build();
   if (S.videoTx) {
     await S.videoTx.sender.replaceTrack(vt);
     const at = screenStream.getAudioTracks()[0];
     if (at && S.audioTx) await S.audioTx.sender.replaceTrack(at);
     await applySendParams();
+    if (initiator) await S.offer();
   }
   sig({ t: 'screen', on: true });
   log('sharing screen');
@@ -744,8 +1429,8 @@ async function stopShare() {
   if (S.videoTx) { try { await S.videoTx.sender.replaceTrack(null); } catch (e) {} }
   if (S.audioTx) { try { await S.audioTx.sender.replaceTrack(null); } catch (e) {} }
   if (screenStream) { screenStream.getTracks().forEach((t) => t.stop()); screenStream = null; }
-  $('#btnShare').textContent = 'Share screen';
-  $('#btnShare').classList.remove('on');
+  $('#btnShare').classList.remove('active');
+  $('#btnShare').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 15v3M12 15v3M6 18h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Share`;
   $('#localPreview').hidden = true;
   $('#localPreview').srcObject = null;
   sig({ t: 'screen', on: false });
@@ -755,6 +1440,15 @@ async function stopShare() {
 function showRemoteScreen(on) {
   $('#remoteScreen').hidden = !on;
   $('#noScreen').hidden = on;
+}
+
+function showWaiting(on) {
+  const w = $('#waitingScreen');
+  if (on) {
+    w.classList.add('visible');
+  } else {
+    w.classList.remove('visible');
+  }
 }
 
 async function applySink(el) {
@@ -922,8 +1616,8 @@ function renderStats(o) {
   const lossOut = arem && arem.frac != null ? arem.frac : 0;
   const connected = A.pc && ['connected', 'completed'].includes(A.pc.iceConnectionState);
   if (!connected) setStatus(peerMeta ? 'connecting' : 'waiting for peer', 'warn');
-  else if (concealed > 0.05 || lossOut > 0.08) setStatus('connected - poor', 'bad');
-  else if (concealed > 0.015 || lossOut > 0.03) setStatus('connected - lossy', 'warn');
+  else if (concealed > 0.05 || lossOut > 0.08) setStatus('connected — poor signal', 'bad');
+  else if (concealed > 0.015 || lossOut > 0.03) setStatus('connected — lossy', 'warn');
   else setStatus('connected', 'ok');
 }
 
@@ -990,6 +1684,11 @@ async function reopenMic() {
 
 /* ---------------- UI wiring ---------------- */
 
+function copyRoomLink() {
+  const link = location.origin + '/r/' + roomId;
+  navigator.clipboard.writeText(link).catch(() => {});
+}
+
 function syncLabels() {
   $('#labAudioTx').textContent = Math.round(cfg.audioTx / 1000) + ' kbps' + (cfg.red ? ' (+RED)' : '');
   $('#labAudioRx').textContent = Math.round(cfg.audioRx / 1000) + ' kbps';
@@ -1002,7 +1701,7 @@ function syncLabels() {
 
 function refreshHeader() {
   if (!joined) return;
-  if (!wsAlive) setStatus('signalling offline - retrying', 'bad');
+  if (!wsAlive) setStatus('signalling offline — retrying', 'bad');
 }
 
 function applyScreenProfile(name) {
@@ -1019,13 +1718,45 @@ function applyScreenProfile(name) {
 }
 
 function wire() {
-  $('#roomLink').value = location.origin + '/r/' + roomId;
+  // Keep #roomLink in sync (used by original JS internally)
+  const roomLink = location.origin + '/r/' + roomId;
+  $('#roomLink').value = roomLink;
+
+  // Show link in pre-join and waiting views
+  if ($('#linkDisplayRoom')) $('#linkDisplayRoom').textContent = roomLink;
+  if ($('#waitingLinkDisplay')) $('#waitingLinkDisplay').textContent = roomLink;
+
   $('#name').value = localStorage.getItem('duo.name') || '';
 
+  // Copy button in pre-join card
   $('#btnCopy').onclick = async () => {
-    try { await navigator.clipboard.writeText($('#roomLink').value); $('#btnCopy').textContent = 'Copied'; }
-    catch (e) { $('#roomLink').select(); }
-    setTimeout(() => ($('#btnCopy').textContent = 'Copy room link'), 1200);
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopy').textContent = 'Copied!';
+      setTimeout(() => ($('#btnCopy').textContent = 'Copy link'), 1400);
+    } catch (e) {
+      $('#roomLink').select();
+    }
+  };
+
+  // Copy in waiting state
+  $('#btnCopyWaiting').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopyWaiting').textContent = 'Copied!';
+      setTimeout(() => ($('#btnCopyWaiting').textContent = 'Copy'), 1400);
+    } catch (e) {}
+  };
+
+  // Invite button in bottom bar
+  $('#btnCopyCtrl').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      $('#btnCopyCtrl').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l4 4 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Copied!`;
+      setTimeout(() => {
+        $('#btnCopyCtrl').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Invite`;
+      }, 1400);
+    } catch (e) {}
   };
 
   $('#btnJoin').onclick = () => { ensureCtx(); join(); };
@@ -1034,8 +1765,13 @@ function wire() {
   $('#btnMic').onclick = () => {
     micMuted = !micMuted;
     if (micStream) micStream.getAudioTracks().forEach((t) => (t.enabled = !micMuted));
-    $('#btnMic').textContent = micMuted ? 'Unmute mic' : 'Mute mic';
-    $('#btnMic').classList.toggle('danger', micMuted);
+    if (micMuted) {
+      $('#btnMic').classList.add('danger');
+      $('#btnMic').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><path d="M3 3l14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 10a6 6 0 0 0 10.3 4.2M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Muted`;
+    } else {
+      $('#btnMic').classList.remove('danger');
+      $('#btnMic').innerHTML = `<svg viewBox="0 0 20 20" fill="none"><rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 10a6 6 0 0 0 12 0M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Mic on`;
+    }
   };
 
   $('#btnShare').onclick = () => (sharing ? stopShare() : startShare());
@@ -1081,6 +1817,18 @@ function wire() {
     log('asked peer for ' + $('#reqBr').value + ' kbps @ ' + $('#reqFps').value + ' fps');
   };
 
+  // Settings panel toggle
+  $('#btnSettings').onclick = () => {
+    const panel = $('#settingsPanel');
+    const isOpen = panel.classList.toggle('open');
+    $('#btnSettings').classList.toggle('active', isOpen);
+  };
+
+  $('#btnCloseSettings').onclick = () => {
+    $('#settingsPanel').classList.remove('open');
+    $('#btnSettings').classList.remove('active');
+  };
+
   navigator.mediaDevices.addEventListener?.('devicechange', listDevices);
   window.addEventListener('beforeunload', () => { try { ws && ws.close(); } catch (e) {} });
 
@@ -1090,11 +1838,11 @@ function wire() {
 function checkCompat() {
   const msgs = [];
   if (!window.RTCPeerConnection) msgs.push('This browser has no WebRTC.');
-  if (!navigator.mediaDevices?.getDisplayMedia) msgs.push('Screen sharing is unavailable here. Use desktop Chrome, Edge or Firefox.');
-  if (!window.isSecureContext) msgs.push('Not a secure context - microphone access needs HTTPS.');
+  if (!navigator.mediaDevices?.getDisplayMedia) msgs.push('Screen sharing is unavailable. Use desktop Chrome, Edge or Firefox.');
+  if (!window.isSecureContext) msgs.push('Not a secure context — microphone needs HTTPS.');
   const caps = window.RTCRtpReceiver?.getCapabilities?.('audio');
   if (caps && !caps.codecs.some((c) => /\/red$/i.test(c.mimeType))) {
-    msgs.push('This browser does not offer Opus RED. Voice will still work, it just loses the redundancy.');
+    msgs.push('This browser does not support Opus RED. Voice still works, just without redundancy.');
   }
   if (msgs.length) { $('#compat').hidden = false; $('#compat').textContent = msgs.join(' '); }
 }

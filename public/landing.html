@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Private voice and screen share calls for two. No accounts. No downloads. Just a link.">
+<title>duo — private calls for two</title>
+
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #09090c;
+    --surface: #111118;
+    --surface-2: #18181f;
+    --border: #1e1e2a;
+    --border-2: #2a2a38;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --accent: #6366f1;
+    --accent-dim: rgba(99,102,241,.12);
+    --accent-hover: #818cf8;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,.12);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle radial glow behind the card */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(ellipse at center, rgba(99,102,241,.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 36px 36px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .brand-icon svg { display: block; }
+
+  .brand-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    color: var(--text);
+  }
+
+  .brand-tag {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    margin-left: 2px;
+    letter-spacing: .02em;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -.5px;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 32px;
+  }
+
+  /* Feature pills */
+  .features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 32px;
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 4px 10px;
+  }
+
+  .pill svg { width: 12px; height: 12px; color: var(--accent); }
+
+  /* CTA button */
+  .btn-primary {
+    width: 100%;
+    padding: 13px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font: 600 15px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s, transform .1s, box-shadow .15s;
+    box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: -.01em;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 28px rgba(129,140,248,.45);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-primary svg { width: 16px; height: 16px; }
+
+  /* Room result (hidden initially) */
+  .room-result {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .room-result.visible { display: flex; }
+
+  .result-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 10px 10px 10px 14px;
+  }
+
+  .link-url {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: ui-monospace, monospace;
+    letter-spacing: -.01em;
+  }
+
+  .btn-copy {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+    border: 1px solid rgba(99,102,241,.2);
+    border-radius: 7px;
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .btn-copy:hover { background: rgba(99,102,241,.2); }
+
+  .btn-copy svg { width: 12px; height: 12px; }
+
+  .btn-join {
+    width: 100%;
+    padding: 13px 20px;
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(34,197,94,.2);
+    border-radius: 10px;
+    font: 600 15px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: -.01em;
+  }
+
+  .btn-join:hover { background: rgba(34,197,94,.2); transform: translateY(-1px); }
+  .btn-join:active { transform: translateY(0); }
+  .btn-join svg { width: 16px; height: 16px; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .hint-row {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    opacity: 0;
+    transition: opacity .2s, transform .2s;
+    white-space: nowrap;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+  /* Footer */
+  footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 480px) {
+    .card { padding: 28px 20px 24px; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="7" cy="10" r="4" fill="white" opacity=".9"/>
+        <circle cx="13" cy="10" r="4" fill="white" opacity=".5"/>
+      </svg>
+    </div>
+    <span class="brand-name">duo</span>
+    <span class="brand-tag">beta</span>
+  </div>
+
+  <h1>Private calls for two.</h1>
+  <p class="subtitle">Create a room, share the link, and talk. No account, no app, just a browser tab.</p>
+
+  <div class="features">
+    <div class="pill">
+      <svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 1a5 5 0 1 1 0 10A5 5 0 0 1 6 1Zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" opacity=".3"/><circle cx="6" cy="6" r="2" fill="currentColor"/></svg>
+      Voice call
+    </div>
+    <div class="pill">
+      <svg viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="2" width="10" height="8" rx="1.5" opacity=".3"/><rect x="1" y="2" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M4 9l1.5-2 1.5 1.5L8.5 6 11 9H4z" fill="currentColor" opacity=".5"/></svg>
+      Screen share
+    </div>
+    <div class="pill">
+      <svg viewBox="0 0 12 12" fill="none"><path d="M6 1L7.5 4l3.5.5L8.5 7l.5 3.5L6 9l-3 1.5.5-3.5L1.5 4.5 5 4z" fill="currentColor" opacity=".4"/></svg>
+      Peer-to-peer
+    </div>
+    <div class="pill">
+      <svg viewBox="0 0 12 12" fill="currentColor"><path d="M9.5 5.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM6 9v2M4 11h4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+      No sign-up
+    </div>
+  </div>
+
+  <!-- Step 1: Create button -->
+  <div id="stepCreate">
+    <button class="btn-primary" id="btnCreate">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M8 3v10M3 8h10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Create a room
+    </button>
+  </div>
+
+  <!-- Step 2: Room link + join (hidden until room created) -->
+  <div class="room-result" id="stepRoom">
+    <div>
+      <div class="result-label">Your room link</div>
+      <div class="link-row">
+        <span class="link-url" id="linkDisplay"></span>
+        <button class="btn-copy" id="btnCopyLink">
+          <svg viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M3 8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          Copy link
+        </button>
+      </div>
+    </div>
+
+    <div class="hint-row">Share this link with your friend, then join below.</div>
+
+    <div class="divider">then</div>
+
+    <button class="btn-join" id="btnEnter">
+      <svg viewBox="0 0 16 16" fill="none">
+        <path d="M8 3a5 5 0 1 1 0 10A5 5 0 0 1 8 3z" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="8" cy="8" r="2.5" fill="currentColor"/>
+      </svg>
+      Enter the room
+    </button>
+  </div>
+</div>
+
+<footer>
+  All audio and video goes directly peer-to-peer.<br>
+  duo never touches your media.
+</footer>
+
+<div class="toast" id="toast">
+  <div class="toast-dot"></div>
+  <span id="toastMsg">Link copied to clipboard</span>
+</div>
+
+<script>
+"use strict";
+
+function newRoomId() {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+let roomUrl = '';
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+document.getElementById('btnCreate').onclick = () => {
+  const roomId = newRoomId();
+  roomUrl = location.origin + '/r/' + roomId;
+  document.getElementById('linkDisplay').textContent = roomUrl;
+  document.getElementById('stepCreate').style.display = 'none';
+  document.getElementById('stepRoom').classList.add('visible');
+
+  // Auto-copy
+  navigator.clipboard.writeText(roomUrl).then(() => {
+    showToast('Link copied — share it with your friend');
+  }).catch(() => {});
+};
+
+document.getElementById('btnCopyLink').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(roomUrl);
+    const btn = document.getElementById('btnCopyLink');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.innerHTML = `<svg viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M3 8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg> Copy link`; }, 1500);
+    showToast('Link copied to clipboard');
+  } catch (e) {}
+};
+
+document.getElementById('btnEnter').onclick = () => {
+  if (roomUrl) location.href = roomUrl;
+};
+</script>
+</body>
+</html>
